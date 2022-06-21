@@ -1,32 +1,44 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from django.urls import reverse
-from django.utils.translation import gettext_lazy as _
+from django.template.defaultfilters import slugify
 # Create your models here.
-
-User = get_user_model()
 
 
 class Post(models.Model):
-    """
-    This Postm model accepts author, title, and Description
-    Created during Django models task in zuri internship programme
-    """
 
-    author = models.ForeignKey(User, verbose_name=_(
-        "Author"), on_delete=models.CASCADE)
-    title = models.CharField(_("Title"), max_length=200)
-    text = models.TextField(_("Text"))
-    created_date = models.DateTimeField(
-        _("Created"), auto_now_add=True)
-    published_date = models.DateTimeField(_("Published"))
+    STATUS_CHOICES = (
+        ("draft", "Draft"),
+        ("published", "Published")
+    )
+
+    # DB Fields
+    title = models.CharField(max_length=250)
+    slug = models.SlugField(max_length=300, unique=True, editable=False)
+    author = models.ForeignKey(
+        get_user_model(), on_delete=models.CASCADE, related_name="blog_posts"
+    )
+    body = models.TextField()
+
+    publish = models.DateTimeField(default=timezone.now)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    status = models.CharField(
+        max_length=10, choices=STATUS_CHOICES, default="draft"
+    )
 
     class Meta:
-        verbose_name = _("post")
-        verbose_name_plural = _("posts")
+        ordering = ("-publish",)
+
+    def save(self, *args, **kwargs):
+        self.slug = slugify(self.title)
+        super().save(*args, **kwargs)
+        pass
 
     def __str__(self):
         return self.title
 
     def get_absolute_url(self):
-        return reverse("post_detail", kwargs={"pk": self.pk})
+        return reverse("blog:post_detail", kwargs={"slug": self.slug})
